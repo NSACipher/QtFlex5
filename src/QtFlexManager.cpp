@@ -136,6 +136,8 @@ bool FlexManagerImpl::equalIdentifer(const QString& id1, const QString& id2) con
 
 FlexManager::FlexManager() : impl(new FlexManagerImpl)
 {
+	Q_INIT_RESOURCE(QtFlex);
+
     Q_ASSERT(qApp != nullptr);
     connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), SLOT(on_app_focusChanged(QWidget*, QWidget*)));
     connect(this, SIGNAL(guiderHover(FlexWidget*, QWidget*)), SLOT(on_flexWidget_guiderHover(FlexWidget*, QWidget*)));
