@@ -366,11 +366,11 @@ void FlexHelperImplWin::updateFrame(HWND hwnd)
         {
             if(dwStyle & WS_MAXIMIZE) {
 				MARGINS margins = { 0, 0, 0, 0 };
-				if(PtrDwnExtendFrameIntoClientArea(hwnd, &margins) == S_OK) {
+				if(PtrDwmExtendFrameIntoClientArea(hwnd, &margins) == S_OK) {
 				}
             } else {
 				MARGINS margins = { 0, 0, 0, 0 };
-				if (PtrDwnExtendFrameIntoClientArea(hwnd, &margins) == S_OK) {
+				if (PtrDwmExtendFrameIntoClientArea(hwnd, &margins) == S_OK) {
 				}
             }
         }
