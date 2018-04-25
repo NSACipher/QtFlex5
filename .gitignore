@@ -114,3 +114,9 @@ UpgradeLog*.XML
 .DS_Store
 *.plist
 DerivedData/
+/.vs/QtFlex/v15/Solution.VC.db-wal
+/.vs/QtFlex/v15/Solution.VC.db-shm
+/.vs/QtFlex/v15/Solution.VC.db
+/.vs/QtFlex/v15/Browse.VC.opendb
+/.vs/QtFlex/v15/Browse.VC.db
+/.vs/QtFlex5/v15/Browse.VC.db

@@ -357,19 +357,25 @@ void FlexHelperImplWin::updateFrame(HWND hwnd)
     int w = rc.right - rc.left;
     int h = rc.bottom - rc.top;
 
+	DWORD dwStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
+	DWORD exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+
     if (_wndW != w || _wndH != h)
     {
         if (_dwmEnabled)
         {
-            MARGINS tmp = { 1, 1, 1, 1 };
-            if (PtrDwmExtendFrameIntoClientArea(hwnd, &tmp) == S_OK)
-            {
+            if(dwStyle & WS_MAXIMIZE) {
+				MARGINS margins = { 0, 0, 0, 0 };
+				if(PtrDwnExtendFrameIntoClientArea(hwnd, &margins) == S_OK) {
+				}
+            } else {
+				MARGINS margins = { 0, 0, 0, 0 };
+				if (PtrDwnExtendFrameIntoClientArea(hwnd, &margins) == S_OK) {
+				}
             }
         }
         else
         {
-            DWORD dwStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
-            DWORD exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
             if (!(dwStyle & WS_MAXIMIZE) || !(exStyle & WS_EX_MDICHILD))
             {
                 HRGN hRgn = 0;
@@ -393,6 +399,8 @@ void FlexHelperImplWin::updateFrame(HWND hwnd)
                     _borders[3] = frameBorder;
                 }
                 SetWindowRgn(hwnd, hRgn, TRUE);
+
+				QGuiApplication::platformNativeInterface()->setWindowProperty(QWidget::find(reinterpret_cast<WId>(hwnd))->windowHandle()->handle(), QByteArrayLiteral("WindowsCustomMargins"), QVariant::fromValue(QMargins(_borders[0], _borders[1], _borders[2], _borders[3])));
             }
         }
     }
@@ -407,7 +415,7 @@ void FlexHelperImplWin::updateStyle(HWND hwnd)
     if (_dwmEnabled)
     {
         DWORD dwStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
-        DWORD rsStyle = WS_THICKFRAME | WS_DLGFRAME | WS_VSCROLL | WS_HSCROLL;
+		DWORD rsStyle = WS_DLGFRAME | WS_VSCROLL | WS_HSCROLL | WS_THICKFRAME;
         if (dwStyle & rsStyle)
         {
             RECT rc;
@@ -774,6 +782,33 @@ void FlexHelper::setWindowInfo(int titleBarHeight, Qt::WindowFlags windowFlags)
     impl->_windowFlags = windowFlags;
 }
 
+void FlexHelper::layout(int w) {
+	QSize buttonsSize = impl->_buttons->sizeHint();
+	QSize extentsSize = impl->_extents->sizeHint();
+
+	auto aw = 0;
+
+	if (impl->_buttons->maxButton()->button() == Flex::Restore) {
+		aw = 16;
+	}
+
+	if (impl->_buttons->maxButton()->button() == Flex::Restore) {
+	}
+
+	auto bw = buttonsSize.width();
+	auto ew = extentsSize.width();
+	auto by = (impl->_titleBarHeight - buttonsSize.height()) / 2 + 1;
+	auto ey = (impl->_titleBarHeight - extentsSize.height()) / 2 + 1;
+
+	impl->_buttons->minButton()->setOver(false);
+	impl->_buttons->maxButton()->setOver(false);
+	impl->_buttons->clsButton()->setOver(false);
+	impl->_buttons->setGeometry(QRect(QPoint(w - bw - aw - 5, by), buttonsSize));
+	impl->_extents->dockPullButton()->setOver(false);
+	impl->_extents->autoHideButton()->setOver(false);
+	impl->_extents->setGeometry(QRect(QPoint(w - bw - aw - ew - 6, ey), extentsSize));
+}
+
 bool FlexHelper::eventFilter(QObject* obj, QEvent* evt)
 {
 #ifdef Q_OS_WIN
@@ -786,31 +821,20 @@ bool FlexHelper::eventFilter(QObject* obj, QEvent* evt)
     auto d = static_cast<FlexHelperImplMac*>(impl.data());
 #endif
 
-    if (evt->type() == QEvent::Resize)
+    if (evt->type() == QEvent::WindowStateChange)
     {
-        auto tmp = static_cast<QResizeEvent*>(evt);
+		QWindowStateChangeEvent* e = static_cast<QWindowStateChangeEvent*>(evt);
 
-        int w = tmp->size().width();
-
-        QSize buttonsSize = impl->_buttons->sizeHint();
-        QSize extentsSize = impl->_extents->sizeHint();
-
-        auto aw = 0;
-        auto bw = buttonsSize.width();
-        auto ew = extentsSize.width();
-        auto by = (impl->_titleBarHeight - buttonsSize.height()) / 2 + 1;
-        auto ey = (impl->_titleBarHeight - extentsSize.height()) / 2 + 1;
-
-        impl->_buttons->minButton()->setOver(false);
-        impl->_buttons->maxButton()->setOver(false);
-        impl->_buttons->clsButton()->setOver(false);
-        impl->_buttons->setGeometry(QRect(QPoint(w - bw - aw - 5, by), buttonsSize));
-        impl->_extents->dockPullButton()->setOver(false);
-        impl->_extents->autoHideButton()->setOver(false);
-        impl->_extents->setGeometry(QRect(QPoint(w - bw - ew - 6, ey), extentsSize));
-
-        return false;
+		if (e->oldState() & Qt::WindowMaximized) {
+			QGuiApplication::platformNativeInterface()->setWindowProperty(QWidget::find(hwnd)->windowHandle()->handle(), QByteArrayLiteral("WindowsCustomMargins"), QVariant::fromValue(QMargins(-8, -31, -8, -8)));
+		}
     }
+
+	if (evt->type() == QEvent::Resize) {
+		layout(static_cast<QResizeEvent*>(evt)->size().width());
+		
+		return false;
+	}
 
     if (obj->property("Site").isValid())
     {
@@ -927,7 +951,7 @@ bool FlexHelper::nativeEvent(const QByteArray&, void* event, long* result)
     case WM_DWMCOMPOSITIONCHANGED:
     {
         BOOL dwmEnabled = TRUE;
-        dwmEnabled = (d->_dwmAllowed && PtrDwmIsCompositionEnabled && PtrDwmIsCompositionEnabled(&dwmEnabled) == S_OK && dwmEnabled);
+		dwmEnabled = (d->_dwmAllowed && PtrDwmIsCompositionEnabled && PtrDwmIsCompositionEnabled(&dwmEnabled) == S_OK & dwmEnabled);
         if (d->_dwmEnabled != dwmEnabled)
         {
             d->_dwmEnabled = dwmEnabled;
@@ -984,6 +1008,8 @@ bool FlexHelper::nativeEvent(const QByteArray&, void* event, long* result)
         }
         else if (wParam == SIZE_MAXIMIZED)
         {
+			QGuiApplication::platformNativeInterface()->setWindowProperty(QWidget::find(reinterpret_cast<WId>(hwnd))->windowHandle()->handle(), QByteArrayLiteral("WindowsCustomMargins"), QVariant::fromValue(QMargins(+8, -31, -8, +8)));
+
             d->_buttons->maxButton()->setToolTip(QWidget::tr("Restore"));
             d->_buttons->maxButton()->setButton(Flex::Restore);
         }
@@ -1049,13 +1075,17 @@ bool FlexHelper::nativeEvent(const QByteArray&, void* event, long* result)
 
                 DWORD dwStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
 
-                if ((dwStyle & (WS_CHILD | WS_MINIMIZE)) != (WS_CHILD | WS_MINIMIZE))
-                {
-                    lpncsp->rgrc[0].left   = l;
-                    lpncsp->rgrc[0].right  = r;
-                    lpncsp->rgrc[0].top    = t;
-                    lpncsp->rgrc[0].bottom = b;
-                }
+				if (dwStyle & WS_MAXIMIZE) {
+					lpncsp->rgrc[0].left = 0;
+					lpncsp->rgrc[0].right = r + l;
+					lpncsp->rgrc[0].top = 0;
+					lpncsp->rgrc[0].bottom = t + b;
+				} else {
+					lpncsp->rgrc[0].left = l;
+					lpncsp->rgrc[0].right = r;
+					lpncsp->rgrc[0].top = t;
+					lpncsp->rgrc[0].bottom = b;
+				}
 
                 return true;
             }
